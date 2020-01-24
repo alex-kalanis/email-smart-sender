@@ -1,0 +1,22 @@
+{
+    "name": "alex-kalanis/email-smart-sender",
+    "description": "Smart Sender mail service as part of EmailApi",
+    "keywords": [],
+    "license": "BSD 3-Clause",
+    "type": "project",
+    "require": {
+        "php": ">=7.1.0",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "alex-kalanis/email-api": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "EmailSmartSender\\": "php-src/"
+        }
+    },
+    "scripts": {
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
