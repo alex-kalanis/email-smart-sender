@@ -14,6 +14,8 @@ use EmailApi\Basics;
  */
 class SmartSender implements Interfaces\Sending
 {
+    /** @var Interfaces\LocalProcessing */
+    protected $localProcess = '';
     /** @var string */
     protected $apiPath = "https://api.sndmart.com/send";
     /** @var string */
@@ -23,8 +25,9 @@ class SmartSender implements Interfaces\Sending
     /** @var string */
     protected $apiSecret = '';
 
-    public function __construct(string $apiKey = '', string $apiSecret = '')
+    public function __construct(Interfaces\LocalProcessing $localProcess, string $apiKey = '', string $apiSecret = '')
     {
+        $this->localProcess = $localProcess;
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
     }
@@ -59,7 +62,7 @@ class SmartSender implements Interfaces\Sending
         if ($toDisabled) {
             try {
                 $this->enableMailOnRemote($to);
-                $this->enableMailLocally($to);
+                $this->localProcess->enableMailLocally($to);
             } catch (Exceptions\EmailException $ex) {
                 return new Basics\Result(false, $ex->getMessage(), 0);
             }
@@ -140,7 +143,7 @@ class SmartSender implements Interfaces\Sending
      * @return void
      * @throws Exceptions\EmailException
      */
-    protected function enableMailOnRemote(Interfaces\EmailUser $to)
+    protected function enableMailOnRemote(Interfaces\EmailUser $to): void
     {
         $data = [
             'email' => $to->getEmail(),
@@ -167,14 +170,5 @@ class SmartSender implements Interfaces\Sending
         if (!$resultCode) {
             throw new Exceptions\EmailException(current($resultMessage));
         }
-    }
-
-    /**
-     * Remove blocks made on local machine by callbacks
-     * @param Interfaces\EmailUser $to
-     */
-    protected function enableMailLocally(Interfaces\EmailUser $to)
-    {
-        // nothing to do here - let it extend
     }
 }
