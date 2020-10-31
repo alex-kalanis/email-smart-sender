@@ -12,9 +12,9 @@ use EmailApi\Basics;
  * @link https://kb.smartsender.io/documentation/api-overview/
  * This service cannot send attachments!
  */
-class SmartSender implements Interfaces\Sending
+class SmartSender implements Interfaces\ISending
 {
-    /** @var Interfaces\LocalProcessing */
+    /** @var Interfaces\ILocalProcessing */
     protected $localProcess = '';
     /** @var string */
     protected $apiPath = "https://api.sndmart.com/send";
@@ -25,7 +25,7 @@ class SmartSender implements Interfaces\Sending
     /** @var string */
     protected $apiSecret = '';
 
-    public function __construct(Interfaces\LocalProcessing $localProcess, string $apiKey = '', string $apiSecret = '')
+    public function __construct(Interfaces\ILocalProcessing $localProcess, string $apiKey = '', string $apiSecret = '')
     {
         $this->localProcess = $localProcess;
         $this->apiKey = $apiKey;
@@ -46,14 +46,14 @@ class SmartSender implements Interfaces\Sending
     /**
      * Send mail directly via php - just use classical PHPMailer
      *
-     * @param Interfaces\Content $content
-     * @param Interfaces\EmailUser $to
-     * @param Interfaces\EmailUser $from
-     * @param Interfaces\EmailUser $replyTo
+     * @param Interfaces\IContent $content
+     * @param Interfaces\IEmailUser $to
+     * @param Interfaces\IEmailUser $from
+     * @param Interfaces\IEmailUser $replyTo
      * @param bool $toDisabled
      * @return Basics\Result
      */
-    public function sendEmail(Interfaces\Content $content, Interfaces\EmailUser $to, ?Interfaces\EmailUser $from = null, ?Interfaces\EmailUser $replyTo = null, $toDisabled = false): Basics\Result
+    public function sendEmail(Interfaces\IContent $content, Interfaces\IEmailUser $to, ?Interfaces\IEmailUser $from = null, ?Interfaces\IEmailUser $replyTo = null, $toDisabled = false): Basics\Result
     {
         if (!empty($content->getAttachments())) {
             return new Basics\Result(false, 'Contains attachments, this is not supported', 0);
@@ -139,11 +139,11 @@ class SmartSender implements Interfaces\Sending
 
     /**
      * Remove address from internal bounce log on SmartSender
-     * @param Interfaces\EmailUser $to
+     * @param Interfaces\IEmailUser $to
      * @return void
      * @throws Exceptions\EmailException
      */
-    protected function enableMailOnRemote(Interfaces\EmailUser $to): void
+    protected function enableMailOnRemote(Interfaces\IEmailUser $to): void
     {
         $data = [
             'email' => $to->getEmail(),
