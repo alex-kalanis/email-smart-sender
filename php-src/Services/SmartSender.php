@@ -1,10 +1,12 @@
 <?php
 
-namespace EmailSmartSender\Services;
+namespace kalanis\EmailSmartSender\Services;
 
-use EmailApi\Exceptions;
-use EmailApi\Interfaces;
-use EmailApi\Basics;
+
+use kalanis\EmailApi\Exceptions;
+use kalanis\EmailApi\Interfaces;
+use kalanis\EmailApi\Basics;
+
 
 /**
  * Class SmartSender
@@ -44,7 +46,7 @@ class SmartSender implements Interfaces\ISending
     }
 
     /**
-     * Send mail directly via php - just use classical PHPMailer
+     * Send mail directly into the service
      *
      * @param Interfaces\IContent $content
      * @param Interfaces\IEmailUser $to

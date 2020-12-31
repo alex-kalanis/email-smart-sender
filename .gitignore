@@ -14,4 +14,7 @@ __pycache__
 /*.egg
 
 # checks
+php-tests/external/
 phpunit
+phpunit*
+.phpunit*
