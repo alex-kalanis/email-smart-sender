@@ -16,16 +16,11 @@ use kalanis\EmailApi\Basics;
  */
 class SmartSender implements Interfaces\ISending
 {
-    /** @var Interfaces\ILocalProcessing */
-    protected $localProcess = '';
-    /** @var string */
-    protected $apiPath = "https://api.sndmart.com/send";
-    /** @var string */
-    protected $apiDiscardPath = "https://api.sndmart.com/v2/blacklist/remove";
-    /** @var string */
-    protected $apiKey = '';
-    /** @var string */
-    protected $apiSecret = '';
+    protected Interfaces\ILocalProcessing $localProcess;
+    protected string $apiPath = "https://api.sndmart.com/send";
+    protected string $apiDiscardPath = "https://api.sndmart.com/v2/blacklist/remove";
+    protected string $apiKey = '';
+    protected string $apiSecret = '';
 
     public function __construct(Interfaces\ILocalProcessing $localProcess, string $apiKey = '', string $apiSecret = '')
     {
@@ -41,8 +36,8 @@ class SmartSender implements Interfaces\ISending
 
     public function canUseService(): bool
     {
-        return (bool)$this->apiKey
-            && (bool)$this->apiSecret;
+        return boolval($this->apiKey)
+            && boolval($this->apiSecret);
     }
 
     /**
@@ -57,93 +52,109 @@ class SmartSender implements Interfaces\ISending
      */
     public function sendEmail(Interfaces\IContent $content, Interfaces\IEmailUser $to, ?Interfaces\IEmailUser $from = null, ?Interfaces\IEmailUser $replyTo = null, $toDisabled = false): Basics\Result
     {
-        if (!empty($content->getAttachments())) {
-            return new Basics\Result(false, 'Contains attachments, this is not supported', 0);
-        }
+        try {
+            if (!empty($content->getAttachments())) {
+                throw new Exceptions\EmailException('Contains attachments, this is not supported');
+            }
 
-        if ($toDisabled) {
-            try {
+            if ($toDisabled) {
                 $this->enableMailOnRemote($to);
                 $this->localProcess->enableMailLocally($to);
-            } catch (Exceptions\EmailException $ex) {
-                return new Basics\Result(false, $ex->getMessage(), 0);
             }
-        }
 
-        $data = [
-            'key' => $this->apiKey,
-            'secret' => $this->apiSecret,
-            'message' => [
-                'from_email' => $from->getEmail(),
-                'from_name' => $from->getEmailName(),
-                'subject' => $content->getSubject(),
-                'to' => [
-                    [
-                        'name' => $to->getEmailName(),
-                        'email' => $to->getEmail()
-                    ]
-                ],
-                'html' => $content->getHtmlBody(),
-                'tags' => [
-                    $content->getTag(),
-                ],
-            ]
-        ];
-        if (!is_null($replyTo)) {
-            $data['message']['reply_to'] = [
-                [
-                    'name' => $replyTo->getEmailName(),
-                    'email' => $replyTo->getEmail()
+            $data = [
+                'key' => $this->apiKey,
+                'secret' => $this->apiSecret,
+                'message' => [
+                    'subject' => $content->getSubject(),
+                    'to' => [
+                        [
+                            'name' => $to->getEmailName(),
+                            'email' => $to->getEmail()
+                        ]
+                    ],
+                    'html' => $content->getHtmlBody(),
+                    'tags' => [
+                        $content->getTag(),
+                    ],
                 ]
             ];
-        }
-
-        // magic with unsubscribe
-        $unSubscribeLink = $content->getUnsubscribeLink();
-        $unSubscribeEmail = $content->getUnsubscribeEmail();
-        if (!(empty($unSubscribeLink) || empty($unSubscribeEmail))) {
-            if ($unSubscribeLink && $unSubscribeEmail) {
-                if ($content->canUnsubscribeOneClick()) {
-                    $data['headers']['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
-                }
-                $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeLink . '>, <' . $unSubscribeEmail . '>';
-            } elseif ($unSubscribeLink) {
-                if ($content->canUnsubscribeOneClick()) {
-                    $data['headers']['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
-                }
-                $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeLink . '>';
-            } else {
-                $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeEmail . '>';
+            if (!is_null($from)) {
+                $data['message']['from_email'] = $from->getEmail();
+                $data['message']['from_name'] = $from->getEmailName();
             }
-        }
-        if (!is_null($replyTo)) {
-            $data['headers']['Reply-To'] = $replyTo->getEmailName() . ' <' . $replyTo->getEmail() . '>';
-        }
-        $encoded = json_encode($data);
+            if (!is_null($replyTo)) {
+                $data['message']['reply_to'] = [
+                    [
+                        'name' => $replyTo->getEmailName(),
+                        'email' => $replyTo->getEmail()
+                    ]
+                ];
+            }
 
-        $ch = curl_init($this->apiPath);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt(
-            $ch, CURLOPT_HTTPHEADER,
-            [
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($encoded)
-            ]
-        );
+            // magic with unsubscribe
+            $unSubscribeLink = $content->getUnsubscribeLink();
+            $unSubscribeEmail = $content->getUnsubscribeEmail();
+            if ((!empty($unSubscribeLink)) || (!empty($unSubscribeEmail))) {
+                if ((!empty($unSubscribeLink)) && (!empty($unSubscribeEmail))) {
+                    if ($content->canUnsubscribeOneClick()) {
+                        $data['headers']['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+                    }
+                    $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeLink . '>, <' . $unSubscribeEmail . '>';
+                } elseif (!empty($unSubscribeLink)) {
+                    if ($content->canUnsubscribeOneClick()) {
+                        $data['headers']['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+                    }
+                    $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeLink . '>';
+                } else {
+                    $data['headers']['List-Unsubscribe'] = '<' . $unSubscribeEmail . '>';
+                }
+            }
+            if (!is_null($replyTo)) {
+                $data['headers']['Reply-To'] = $replyTo->getEmailName() . ' <' . $replyTo->getEmail() . '>';
+            }
+            $encoded = json_encode($data);
+            if (false === $encoded) {
+                throw new Exceptions\EmailException('Cannot encode data');
+            }
 
-        $result = json_decode(curl_exec($ch));
-        $resultCode = (isset($result->result)) ? $result->result : 0;
-        $resultMessageId = (isset($result->message_id)) ? $result->message_id : 0;
-        return new Basics\Result((1 == $resultCode), $result, $resultMessageId);
+            $ch = curl_init($this->apiPath);
+            if (false === $ch) {
+                throw new Exceptions\EmailException('Cannot connect');
+            }
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt(
+                $ch, CURLOPT_HTTPHEADER,
+                [
+                    'Content-Type: application/json',
+                    'Content-Length: ' . strlen($encoded)
+                ]
+            );
+
+            $got = curl_exec($ch);
+            if (false === $got) {
+                throw new Exceptions\EmailException('Cannot understand response');
+            }
+            if (true === $got) {
+                return new Basics\Result(true, 'Message sent');
+            }
+
+            $result = (object) json_decode($got);
+            $resultCode = (isset($result->result)) ? $result->result : 0;
+            $resultMessageId = (isset($result->message_id)) ? $result->message_id : 0;
+            return new Basics\Result((1 == $resultCode), $got, strval($resultMessageId));
+        } catch (Exceptions\EmailException $ex) {
+            return new Basics\Result(false, $ex->getMessage());
+        }
     }
 
     /**
      * Remove address from internal bounce log on SmartSender
      * @param Interfaces\IEmailUser $to
-     * @return void
      * @throws Exceptions\EmailException
+     * @return void
      */
     protected function enableMailOnRemote(Interfaces\IEmailUser $to): void
     {
@@ -151,8 +162,15 @@ class SmartSender implements Interfaces\ISending
             'email' => $to->getEmail(),
         ];
         $encoded = json_encode($data);
+        if (false === $encoded) {
+            throw new Exceptions\EmailException('Cannot encode data');
+        }
 
         $ch = curl_init($this->apiDiscardPath);
+        if (false === $ch) {
+            throw new Exceptions\EmailException('Cannot connect');
+        }
+
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -165,7 +183,15 @@ class SmartSender implements Interfaces\ISending
             ]
         );
 
-        $result = json_decode(curl_exec($ch));
+        $got = curl_exec($ch);
+        if (false === $got) {
+            throw new Exceptions\EmailException('Cannot understand response');
+        }
+        if (true === $got) {
+            return;
+        }
+
+        $result = (object) json_decode($got);
         $resultCode = (isset($result->result)) ? $result->result : 0;
         $resultCode = boolval($resultCode);
         $resultMessage = (isset($result->errors)) ? $result->errors : ['Unknown error!'];
